@@ -1,0 +1,15 @@
+---
+title: "stud_pred"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(ggplot2)
+library(ISLR2)
+library(dplyr)
+library(readr)
+
+```
+
