@@ -1,5 +1,5 @@
 ---
-title: "stud_pred"
+title: "Student Performance Prediction"
 format: html
 ---
 
@@ -10,6 +10,214 @@ library(ggplot2)
 library(ISLR2)
 library(dplyr)
 library(readr)
+
+```
+
+```{r}
+data <- read_csv('/Users/shifapanjwani/Desktop/GitHub/mlproject/notebook/data/stud.csv')
+head(data)
+glimpse(data)
+```
+```{r}
+# Check for missing values
+sum(is.na(data))
+
+# Summary statistics
+summary(data)
+
+# Exploratory Data Analysis (EDA)
+ggplot(data, aes(x = test_preparation_course, y = math_score)) +
+  geom_point() +
+  geom_smooth(method = 'lm', col = 'blue')
+
+```
+```{r}
+# Correlation matrix
+correlation_matrix <- cor(data |>
+                            select_if(is.numeric))
+print(correlation_matrix)
+```
+```{r}
+data <- data |>
+  mutate(across(where(is.character), as.factor))
+```
+
+```{r}
+set.seed(427)
+data_split <- initial_split(data, prop = 0.7)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+```
+
+```{r}
+# Linear Regression Recipes
+# Recipe 1: Mean Imputation + Dummy Encoding + Normalization
+recipe_lm1 <- recipe(math_score ~ ., data = train_data) |>
+  step_impute_mean(all_numeric_predictors()) |>
+  step_unknown(all_nominal_predictors()) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_lincomb(all_predictors()) |>
+  step_normalize(all_numeric_predictors())
+
+# Recipe 2: Median Imputation + Zero-Variance Removal + Ordinal Encoding
+recipe_lm2 <- recipe(math_score ~ ., data = train_data) |>
+  step_impute_median(all_numeric_predictors()) |>
+  step_unknown(all_nominal_predictors()) |>
+  step_zv(all_predictors()) |>
+  step_integer(all_nominal_predictors()) |>
+  step_lincomb(all_predictors()) |>
+  step_normalize(all_numeric_predictors())
+
+# Recipe 3: KNN Imputation + Lumping Rare Categories + Normalization
+recipe_lm3 <- recipe(math_score ~ ., data = train_data) |>
+  step_impute_knn(all_numeric_predictors()) |>
+  step_unknown(all_nominal_predictors()) |>
+  step_other(all_nominal_predictors(), threshold = 0.05) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_lincomb(all_predictors()) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_numeric_predictors())
+
+prep_lm1 <- prep(recipe_lm1)
+prep_lm2 <- prep(recipe_lm2)
+prep_lm3 <- prep(recipe_lm3)
+```
+
+
+```{r}
+# KNN Recipes
+# Recipe 1: Mean Imputation + One-Hot Encoding + Zero-Variance Removal + Normalization
+recipe_knn1 <- recipe(math_score ~ ., data = train_data) |>
+  step_impute_mean(all_numeric_predictors()) |>  
+  step_unknown(all_nominal_predictors()) |>  
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) |>  
+  step_zv(all_predictors()) |> 
+  step_normalize(all_numeric_predictors())
+
+# Recipe 2: Median Imputation + Lumping Rare Categories + Zero-Variance Removal + Normalization
+recipe_knn2 <- recipe(math_score ~ ., data = train_data) |>
+  step_impute_median(all_numeric_predictors()) |>  
+  step_other(all_nominal_predictors(), threshold = 0.02) |>  
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) |>  
+  step_zv(all_predictors()) |> 
+  step_normalize(all_numeric_predictors())
+
+# Recipe 3: KNN Imputation + Zero-Variance Removal + Normalization
+recipe_knn3 <- recipe(math_score ~ ., data = train_data) |>
+  step_impute_knn(all_numeric_predictors()) |>  
+  step_unknown(all_nominal_predictors()) |>  
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) |>  
+  step_zv(all_predictors()) |>  
+  step_normalize(all_numeric_predictors())
+
+prep_knn1 <- prep(recipe_knn1)
+prep_knn2 <- prep(recipe_knn2)
+prep_knn3 <- prep(recipe_knn3)
+```
+
+
+```{r}
+# Define Linear Regression Model
+lm_model <- linear_reg() |>  
+  set_engine("lm")
+
+# Define KNN Models with different Values of k
+knn_model3 <- nearest_neighbor(neighbors = 3) |> 
+  set_engine("kknn") |> 
+  set_mode("regression")
+knn_model5 <- nearest_neighbor(neighbors = 5) |> 
+  set_engine("kknn") |> 
+  set_mode("regression")
+knn_model10 <- nearest_neighbor(neighbors = 10) |> 
+  set_engine("kknn") |> 
+  set_mode("regression")
+
+# Create a workflow_set for KNN models
+knn_workflows <- workflow_set(
+  preproc = list(
+    "knn_recipe1" = recipe_knn1,
+    "knn_recipe2" = recipe_knn2,
+    "knn_recipe3" = recipe_knn3
+  ),
+  models = list(
+    "knn_3" = knn_model3,
+    "knn_5" = knn_model5,
+    "knn_10" = knn_model10
+  ),
+  cross = TRUE
+)
+
+# Create a workflow_set for Linear Regression models
+lm_workflows <- workflow_set(
+  preproc = list(
+    "lm_recipe1" = recipe_lm1,
+    "lm_recipe2" = recipe_lm2,
+    "lm_recipe3" = recipe_lm3
+  ),
+  models = list(
+    "lm_model" = lm_model
+  ),
+  cross = TRUE
+)
+
+# Combine all workflows
+all_workflows <- lm_workflows |> 
+  bind_rows(knn_workflows)
+
+```
+
+
+```{r}
+set.seed(427)
+# Cross Validation with 5 folds and 5 repeats
+cv_splits <- vfold_cv(train_data, v = 5, repeats = 5)
+metrics <- metric_set(rmse, rsq)
+
+cv_results <- workflow_map(
+  all_workflows,
+  resamples = cv_splits,
+  metrics = metrics
+)
+
+cv_metrics <- cv_results |> collect_metrics()
+```
+
+```{r}
+# RMSE Plot
+ggplot(cv_metrics |> filter(.metric == "rmse"), aes(x = wflow_id, y = mean, fill = model)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "RMSE Comparison of Workflows",
+    x = "Workflow ID",
+    y = "Mean RMSE"
+  ) +
+  theme_minimal()
+
+# R-Squared Plot
+ggplot(cv_metrics |> filter(.metric == "rsq"), aes(x = wflow_id, y = mean, fill = model)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "R-Squared Comparison of Workflows",
+    x = "Workflow ID",
+    y = "Mean R-Squared"
+  ) +
+  theme_minimal()
+```
+```{r}
+# Extract and Fit Best Model
+best_workflow <- all_workflows |>
+  extract_workflow("lm_recipe1_lm_model") 
+
+# Re-fit the model
+set.seed(427)
+data_split <- initial_split(data, prop = 0.7)
+final_fit <- last_fit(best_workflow, split = data_split, metrics = metric_set(rmse, rsq))
+
+# Evaluate on Test Set
+test_metrics <- collect_metrics(final_fit)
+test_metrics
 
 ```
 
