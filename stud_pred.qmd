@@ -7,6 +7,26 @@ format:
     embed-resources: true
 ---
 
+### Problem Statement
+
+In the field of education, understanding the factors influencing student performance is critical for improving academic outcomes. This project aims to develop a predictive model to estimate students' Math scores using the **Student Performance Prediction** dataset. The dataset contains various demographic and academic features, including **gender**, **race/ethnicity**, **parental education level**, **lunch type**, **test preparation course completion**, as well as **reading and writing scores**.
+
+The primary objective is to analyze how these factors contribute to Math performance and create an accurate machine learning model that can predict Math scores. By identifying the most significant predictors, the study will provide actionable insights for educators, policymakers, and academic institutions to implement targeted interventions and improve student outcomes.
+
+**Key Goals:**
+
+-   Develop a regression-based predictive model to estimate Math scores
+
+-   Perform EDA to identify patterns and correlations
+
+-   Evaluate linear and KNN model performances using appropriate metrics (e.g., RMSE, R-squared)
+
+-   Identify the best model
+
+This project will leverage various machine learning algorithms and evaluate their effectiveness to select the best-performing model. The results will offer valuable insights into the factors influencing Math achievement and suggest strategies for academic support.
+
+### Loading Libraries
+
 ```{r}
 #| message: false
 #| warning: false
@@ -18,6 +38,8 @@ library(dplyr)
 library(readr)
 ```
 
+### Loading Dataset
+
 ```{r}
 #| message: false
 #| warning: false
@@ -25,17 +47,17 @@ data <- read_csv('/Users/shifapanjwani/Desktop/GitHub/mlproject/notebook/data/st
 head(data)
 ```
 
+## Data Cleaning
+
+### Missing Values
+
 ```{r}
-# Check for missing values
 sum(is.na(data))
-
-# Summary statistics
-summary(data)
-
 ```
 
+### Outliers
+
 ```{r}
-# Checking for outliers
 data |>
   select(math_score, reading_score, writing_score) |>
   gather(key = "variable", value = "value") |>
@@ -70,36 +92,58 @@ data_clean |>
 
 ```
 
+## Exploratory Data Analysis
+
+### Summary
+
 ```{r}
-# Checking the variance for each
+summary(data_clean)
+```
+
+### Near-Zero Variance
+
+```{r}
 data_clean |> count(gender)
 data_clean |> count(race_ethnicity)
 data_clean |> count(parental_level_of_education)
 data_clean |> count(lunch)
 data_clean |> count(test_preparation_course)
+```
 
-# Relationship between Math Scores and Gender
+### Math Score vs. Gender
+
+```{r}
 ggplot(data_clean, aes(x = gender, y = math_score, fill = gender)) +
   geom_boxplot() +
   labs(title = "Gender vs Math Score")
+```
 
-# Relationship between Math Scores and Test Prep Course
+### Math Score vs. Test Preparation Course 
+
+```{r}
 ggplot(data_clean, aes(x = test_preparation_course, y = math_score, fill = test_preparation_course)) +
   geom_boxplot() +
   labs(title = "Test Preparation Course vs Math Score")
 ```
 
+### Correlation Matrix
+
 ```{r}
-# Correlation matrix
 correlation_matrix <- cor(data_clean |>
                             select_if(is.numeric))
 print(correlation_matrix)
 ```
 
+## Data Preprocessing
+
+### Categorical Columns to Factors
+
 ```{r}
 data_clean <- data_clean |>
   mutate(across(where(is.character), as.factor))
 ```
+
+### Data Splitting
 
 ```{r}
 set.seed(427)
@@ -108,17 +152,24 @@ train_data <- training(data_split)
 test_data <- testing(data_split)
 ```
 
+### Linear Regression Recipes
+
+This section creates 3 different data preprocessing pipelines using the 'recipes' package from tidymodels to prepare data for linear regression models. Each recipe applies various imputation, encoding and normalization techniques to handle missing values, categorical data, and scaling.
+
+#### Recipe 1: Mean Imputation + Dummy Encoding + Normalization
+
 ```{r}
-# Linear Regression Recipes
-# Recipe 1: Mean Imputation + Dummy Encoding + Normalization
 recipe_lm1 <- recipe(math_score ~ ., data = train_data) |>
   step_impute_mean(all_numeric_predictors()) |>
   step_unknown(all_nominal_predictors()) |>
   step_dummy(all_nominal_predictors()) |>
   step_lincomb(all_predictors()) |>
   step_normalize(all_numeric_predictors())
+```
 
-# Recipe 2: Median Imputation + Zero-Variance Removal + Ordinal Encoding
+#### Recipe 2: Median Imputation + Zero-Variance Removal + Ordinal Encoding
+
+```{r}
 recipe_lm2 <- recipe(math_score ~ ., data = train_data) |>
   step_impute_median(all_numeric_predictors()) |>
   step_unknown(all_nominal_predictors()) |>
@@ -126,8 +177,11 @@ recipe_lm2 <- recipe(math_score ~ ., data = train_data) |>
   step_integer(all_nominal_predictors()) |>
   step_lincomb(all_predictors()) |>
   step_normalize(all_numeric_predictors())
+```
 
-# Recipe 3: KNN Imputation + Lumping Rare Categories + Normalization
+#### Recipe 3: KNN Imputation + Lumping Rare Categories + Normalization
+
+```{r}
 recipe_lm3 <- recipe(math_score ~ ., data = train_data) |>
   step_impute_knn(all_numeric_predictors()) |>
   step_unknown(all_nominal_predictors()) |>
@@ -136,49 +190,73 @@ recipe_lm3 <- recipe(math_score ~ ., data = train_data) |>
   step_lincomb(all_predictors()) |>
   step_zv(all_predictors()) |>
   step_normalize(all_numeric_predictors())
+```
 
+#### Preparation of Recipes
+
+```{r}
 prep_lm1 <- prep(recipe_lm1)
 prep_lm2 <- prep(recipe_lm2)
 prep_lm3 <- prep(recipe_lm3)
 ```
 
+### KNN Recipes
+
+#### Recipe 1: Mean Imputation + One-Hot Encoding + Zero-Variance Removal +Normalization
+
 ```{r}
-# KNN Recipes
-# Recipe 1: Mean Imputation + One-Hot Encoding + Zero-Variance Removal + Normalization
 recipe_knn1 <- recipe(math_score ~ ., data = train_data) |>
   step_impute_mean(all_numeric_predictors()) |>  
   step_unknown(all_nominal_predictors()) |>  
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |>  
   step_zv(all_predictors()) |> 
   step_normalize(all_numeric_predictors())
+```
 
-# Recipe 2: Median Imputation + Lumping Rare Categories + Zero-Variance Removal + Normalization
+#### Recipe 2: Median Imputation + Lumping Rare Categories + Zero-Variance Removal + Normalization
+
+```{r}
 recipe_knn2 <- recipe(math_score ~ ., data = train_data) |>
   step_impute_median(all_numeric_predictors()) |>  
   step_other(all_nominal_predictors(), threshold = 0.02) |>  
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |>  
   step_zv(all_predictors()) |> 
   step_normalize(all_numeric_predictors())
+```
 
-# Recipe 3: KNN Imputation + Zero-Variance Removal + Normalization
+#### Recipe 3: KNN Imputation + Zero-Variance Removal + Normalization
+
+```{r}
 recipe_knn3 <- recipe(math_score ~ ., data = train_data) |>
   step_impute_knn(all_numeric_predictors()) |>  
   step_unknown(all_nominal_predictors()) |>  
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |>  
   step_zv(all_predictors()) |>  
   step_normalize(all_numeric_predictors())
+```
 
+#### Preparation of Recipes
+
+```{r}
 prep_knn1 <- prep(recipe_knn1)
 prep_knn2 <- prep(recipe_knn2)
 prep_knn3 <- prep(recipe_knn3)
 ```
 
+## Model Definition
+
+### Linear Regression
+
 ```{r}
-# Define Linear Regression Model
 lm_model <- linear_reg() |>  
   set_engine("lm")
 
-# Define KNN Models with different Values of k
+
+```
+
+### KNN Models
+
+```{r}
 knn_model3 <- nearest_neighbor(neighbors = 3) |> 
   set_engine("kknn") |> 
   set_mode("regression")
@@ -189,7 +267,30 @@ knn_model10 <- nearest_neighbor(neighbors = 10) |>
   set_engine("kknn") |> 
   set_mode("regression")
 
-# Create a workflow_set for KNN models
+
+```
+
+## Workflow Creation
+
+### Linear Regression Workflow Set
+
+```{r}
+lm_workflows <- workflow_set(
+  preproc = list(
+    "lm_recipe1" = recipe_lm1,
+    "lm_recipe2" = recipe_lm2,
+    "lm_recipe3" = recipe_lm3
+  ),
+  models = list(
+    "lm_model" = lm_model
+  ),
+  cross = TRUE
+)
+```
+
+### KNN Workflow Set
+
+```{r}
 knn_workflows <- workflow_set(
   preproc = list(
     "knn_recipe1" = recipe_knn1,
@@ -203,29 +304,20 @@ knn_workflows <- workflow_set(
   ),
   cross = TRUE
 )
+```
 
-# Create a workflow_set for Linear Regression models
-lm_workflows <- workflow_set(
-  preproc = list(
-    "lm_recipe1" = recipe_lm1,
-    "lm_recipe2" = recipe_lm2,
-    "lm_recipe3" = recipe_lm3
-  ),
-  models = list(
-    "lm_model" = lm_model
-  ),
-  cross = TRUE
-)
+### Combining All Workflows
 
-# Combine all workflows
+```{r}
 all_workflows <- lm_workflows |> 
   bind_rows(knn_workflows)
-
 ```
+
+## Cross-Validation & Model Evaluation
 
 ```{r}
 set.seed(427)
-# Cross Validation with 5 folds and 5 repeats
+
 cv_splits <- vfold_cv(train_data, v = 5, repeats = 5)
 metrics <- metric_set(rmse, rsq)
 
@@ -238,8 +330,11 @@ cv_results <- workflow_map(
 cv_metrics <- cv_results |> collect_metrics()
 ```
 
+## Visualization of Model Performance
+
+### RMSE Plot
+
 ```{r}
-# RMSE Plot
 ggplot(cv_metrics |> filter(.metric == "rmse"), aes(x = wflow_id, y = mean, fill = model)) +
   geom_col(position = "dodge") +
   coord_flip() +
@@ -249,8 +344,11 @@ ggplot(cv_metrics |> filter(.metric == "rmse"), aes(x = wflow_id, y = mean, fill
     y = "Mean RMSE"
   ) +
   theme_minimal()
+```
 
-# R-Squared Plot
+### R-Squared Plot
+
+```{r}
 ggplot(cv_metrics |> filter(.metric == "rsq"), aes(x = wflow_id, y = mean, fill = model)) +
   geom_col(position = "dodge") +
   coord_flip() +
@@ -261,6 +359,8 @@ ggplot(cv_metrics |> filter(.metric == "rsq"), aes(x = wflow_id, y = mean, fill 
   ) +
   theme_minimal()
 ```
+
+## Model Selection, Fitting & Evaluation
 
 ```{r}
 # Extract and Fit Best Model
