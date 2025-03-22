@@ -1,9 +1,15 @@
 ---
-title: "Student Performance Prediction"
-format: html
+title: "Student Performance Predictor"
+author: "Shifa Panjwani"
+editor: visual
+format:
+  html:
+    embed-resources: true
 ---
 
 ```{r}
+#| message: false
+#| warning: false
 library(tidyverse)
 library(tidymodels)
 library(ggplot2)
@@ -13,10 +19,12 @@ library(readr)
 ```
 
 ```{r}
+#| message: false
+#| warning: false
 data <- read_csv('/Users/shifapanjwani/Desktop/GitHub/mlproject/notebook/data/stud.csv')
 head(data)
-glimpse(data)
 ```
+
 ```{r}
 # Check for missing values
 sum(is.na(data))
@@ -25,11 +33,12 @@ sum(is.na(data))
 summary(data)
 
 ```
+
 ```{r}
 # Checking for outliers
 data |>
-  select(math_score, reading_score, writing_score) %>%
-  gather(key = "variable", value = "value") %>%
+  select(math_score, reading_score, writing_score) |>
+  gather(key = "variable", value = "value") |>
   ggplot(aes(x = variable, y = value)) +
   geom_boxplot() +
   labs(title = "Boxplot of Math, Reading, and Writing Scores to Identify Outliers")
@@ -60,6 +69,7 @@ data_clean |>
   labs(title = "Boxplot of Math, Reading, and Writing Scores to Identify Outliers")
 
 ```
+
 ```{r}
 # Checking the variance for each
 data_clean |> count(gender)
@@ -85,6 +95,7 @@ correlation_matrix <- cor(data_clean |>
                             select_if(is.numeric))
 print(correlation_matrix)
 ```
+
 ```{r}
 data_clean <- data_clean |>
   mutate(across(where(is.character), as.factor))
@@ -131,7 +142,6 @@ prep_lm2 <- prep(recipe_lm2)
 prep_lm3 <- prep(recipe_lm3)
 ```
 
-
 ```{r}
 # KNN Recipes
 # Recipe 1: Mean Imputation + One-Hot Encoding + Zero-Variance Removal + Normalization
@@ -162,7 +172,6 @@ prep_knn1 <- prep(recipe_knn1)
 prep_knn2 <- prep(recipe_knn2)
 prep_knn3 <- prep(recipe_knn3)
 ```
-
 
 ```{r}
 # Define Linear Regression Model
@@ -214,7 +223,6 @@ all_workflows <- lm_workflows |>
 
 ```
 
-
 ```{r}
 set.seed(427)
 # Cross Validation with 5 folds and 5 repeats
@@ -253,6 +261,7 @@ ggplot(cv_metrics |> filter(.metric == "rsq"), aes(x = wflow_id, y = mean, fill 
   ) +
   theme_minimal()
 ```
+
 ```{r}
 # Extract and Fit Best Model
 best_workflow <- all_workflows |>
@@ -268,4 +277,3 @@ test_metrics <- collect_metrics(final_fit)
 test_metrics
 
 ```
-
