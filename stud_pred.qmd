@@ -10,7 +10,6 @@ library(ggplot2)
 library(ISLR2)
 library(dplyr)
 library(readr)
-
 ```
 
 ```{r}
@@ -25,26 +24,75 @@ sum(is.na(data))
 # Summary statistics
 summary(data)
 
-# Exploratory Data Analysis (EDA)
-ggplot(data, aes(x = test_preparation_course, y = math_score)) +
-  geom_point() +
-  geom_smooth(method = 'lm', col = 'blue')
+```
+```{r}
+# Checking for outliers
+data |>
+  select(math_score, reading_score, writing_score) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Math, Reading, and Writing Scores to Identify Outliers")
+
+
+remove_outliers <- function(data, col) {
+  Q1 <- quantile(data[[col]], 0.25)
+  Q3 <- quantile(data[[col]], 0.75)
+  IQR <- Q3 - Q1
+  data %>% filter(data[[col]] >= (Q1 - 1.5 * IQR) & data[[col]] <= (Q3 + 1.5 * IQR))
+}
+
+# Remove outliers from math, reading, and writing scores
+data_clean <- data |>
+  remove_outliers("math_score") |>
+  remove_outliers("reading_score") |>
+  remove_outliers("writing_score")
+
+# Check the dimensions before and after outlier removal
+cat("Original data: ", nrow(data), "rows\n")
+cat("Cleaned data: ", nrow(data_clean), "rows\n")
+
+data_clean |>
+  select(math_score, reading_score, writing_score) |>
+  gather(key = "variable", value = "value") |>
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Math, Reading, and Writing Scores to Identify Outliers")
 
 ```
 ```{r}
+# Checking the variance for each
+data_clean |> count(gender)
+data_clean |> count(race_ethnicity)
+data_clean |> count(parental_level_of_education)
+data_clean |> count(lunch)
+data_clean |> count(test_preparation_course)
+
+# Relationship between Math Scores and Gender
+ggplot(data_clean, aes(x = gender, y = math_score, fill = gender)) +
+  geom_boxplot() +
+  labs(title = "Gender vs Math Score")
+
+# Relationship between Math Scores and Test Prep Course
+ggplot(data_clean, aes(x = test_preparation_course, y = math_score, fill = test_preparation_course)) +
+  geom_boxplot() +
+  labs(title = "Test Preparation Course vs Math Score")
+```
+
+```{r}
 # Correlation matrix
-correlation_matrix <- cor(data |>
+correlation_matrix <- cor(data_clean |>
                             select_if(is.numeric))
 print(correlation_matrix)
 ```
 ```{r}
-data <- data |>
+data_clean <- data_clean |>
   mutate(across(where(is.character), as.factor))
 ```
 
 ```{r}
 set.seed(427)
-data_split <- initial_split(data, prop = 0.7)
+data_split <- initial_split(data_clean, prop = 0.7)
 train_data <- training(data_split)
 test_data <- testing(data_split)
 ```
@@ -212,7 +260,7 @@ best_workflow <- all_workflows |>
 
 # Re-fit the model
 set.seed(427)
-data_split <- initial_split(data, prop = 0.7)
+data_split <- initial_split(data_clean, prop = 0.7)
 final_fit <- last_fit(best_workflow, split = data_split, metrics = metric_set(rmse, rsq))
 
 # Evaluate on Test Set
