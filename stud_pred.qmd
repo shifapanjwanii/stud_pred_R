@@ -7,9 +7,9 @@ format:
     embed-resources: true
 ---
 
-### Problem Statement
+## Problem Statement
 
-In the field of education, understanding the factors influencing student performance is critical for improving academic outcomes. This project aims to develop a predictive model to estimate students' Math scores using the **Student Performance Prediction** dataset. The dataset contains various demographic and academic features, including **gender**, **race/ethnicity**, **parental education level**, **lunch type**, **test preparation course completion**, as well as **reading and writing scores**.
+In the field of education, understanding the factors influencing student performance is critical for improving academic outcomes. This project aims to develop a predictive model to estimate students' Math scores using the [**Student Performance Prediction**](https://www.kaggle.com/datasets/spscientist/students-performance-in-exams?datasetId=74977) dataset. The dataset contains various demographic and academic features, including **gender**, **race/ethnicity**, **parental education level**, **lunch type**, **test preparation course completion**, as well as **reading and writing scores**.
 
 The primary objective is to analyze how these factors contribute to Math performance and create an accurate machine learning model that can predict Math scores. By identifying the most significant predictors, the study will provide actionable insights for educators, policymakers, and academic institutions to implement targeted interventions and improve student outcomes.
 
@@ -25,7 +25,29 @@ The primary objective is to analyze how these factors contribute to Math perform
 
 This project will leverage various machine learning algorithms and evaluate their effectiveness to select the best-performing model. The results will offer valuable insights into the factors influencing Math achievement and suggest strategies for academic support.
 
-### Loading Libraries
+## Data: Students Performance in Exams
+
+There are 8 columns and 1000 rows. The primary variables of interest are:
+
+-   *'gender':* Gender of the student
+
+-   *'race_ethnicity'*: Race/ethnicity of the student
+
+-   *'parental_level_of_education':* Highest degree earned by student's parents
+
+-   *'lunch':* Type of lunch plan the student is registered for
+
+-   *'test_preparation_course':* Whether they took a test preparation course
+
+-   *'math_score':* Student's math score
+
+-   *'reading_score':* Student's reading score
+
+-   *'writing_score':* Student's writing score
+
+The ultimate goal will be to predict *'math_score'* using the other features.
+
+## Loading Libraries
 
 ```{r}
 #| message: false
@@ -38,7 +60,7 @@ library(dplyr)
 library(readr)
 ```
 
-### Loading Dataset
+## Loading Dataset
 
 ```{r}
 #| message: false
@@ -56,6 +78,16 @@ sum(is.na(data))
 ```
 
 ### Outliers
+
+This section handles outliers in the dataset using boxplots.
+
+-   Initially, a boxplot is created to visualize the distribution of the 3 scores to detect any outliers.
+
+-   The plot revealed a few outliers, which were identified as points falling beyond the typical range of the data (often 1.5 times the IQR).
+
+-   These outliers were removed to improve model accuracy and reduce noise in the data.
+
+-   After removing the outliers, the number of rows in the dataset was reduced from 1000 to 986.
 
 ```{r}
 data |>
@@ -89,7 +121,6 @@ data_clean |>
   ggplot(aes(x = variable, y = value)) +
   geom_boxplot() +
   labs(title = "Boxplot of Math, Reading, and Writing Scores to Identify Outliers")
-
 ```
 
 ## Exploratory Data Analysis
@@ -100,7 +131,9 @@ data_clean |>
 summary(data_clean)
 ```
 
-### Near-Zero Variance
+### Near-Zero Variance & Lumping
+
+This section checks the distribution of categorical variables in the dataset. The goal was to identify categories with near-zero variance (very few occurrences), however, none of the categories qualified for it. Hence, there's no need for lumping.
 
 ```{r}
 data_clean |> count(gender)
@@ -118,13 +151,17 @@ ggplot(data_clean, aes(x = gender, y = math_score, fill = gender)) +
   labs(title = "Gender vs Math Score")
 ```
 
-### Math Score vs. Test Preparation Course 
+-   Male students tend to score slightly better in math than female students.
+
+### Math Score vs. Test Preparation Course
 
 ```{r}
 ggplot(data_clean, aes(x = test_preparation_course, y = math_score, fill = test_preparation_course)) +
   geom_boxplot() +
   labs(title = "Test Preparation Course vs Math Score")
 ```
+
+-   Students who had completed a test preparation course scored higher in math than those who had not taken it.
 
 ### Correlation Matrix
 
@@ -134,9 +171,15 @@ correlation_matrix <- cor(data_clean |>
 print(correlation_matrix)
 ```
 
+-   Reading and Writing scores have a high positive correlation.
+
+-   Math scores, with each of Reading and Writing scores also have moderate positive correlations.
+
 ## Data Preprocessing
 
 ### Categorical Columns to Factors
+
+This code converts all categorical columns in the dataset from 'character' to 'factor' type, to ensure they are treated appropriately during modeling.
 
 ```{r}
 data_clean <- data_clean |>
@@ -145,11 +188,16 @@ data_clean <- data_clean |>
 
 ### Data Splitting
 
+We split the data into train (70%) and test (30%) sets.
+
 ```{r}
 set.seed(427)
 data_split <- initial_split(data_clean, prop = 0.7)
 train_data <- training(data_split)
 test_data <- testing(data_split)
+
+nrow(train_data)
+nrow(test_data)
 ```
 
 ### Linear Regression Recipes
@@ -157,6 +205,16 @@ test_data <- testing(data_split)
 This section creates 3 different data preprocessing pipelines using the 'recipes' package from tidymodels to prepare data for linear regression models. Each recipe applies various imputation, encoding and normalization techniques to handle missing values, categorical data, and scaling.
 
 #### Recipe 1: Mean Imputation + Dummy Encoding + Normalization
+
+-   **Mean Imputation:** Missing numeric values are replaced with the mean of the respective columns.
+
+-   **Unknown Category Assignment:** Unknown levels in categorical variables are handled.
+
+-   **Dummy Encoding:** Categorical variables are converted into dummy (binary) variables for linear regression.
+
+-   **Linear Combination Check:** Multicollinear functions are detected and removed.
+
+-   **Normalization:** Numeric features are scaled to have a mean of zero and standard deviation of one.
 
 ```{r}
 recipe_lm1 <- recipe(math_score ~ ., data = train_data) |>
@@ -169,6 +227,12 @@ recipe_lm1 <- recipe(math_score ~ ., data = train_data) |>
 
 #### Recipe 2: Median Imputation + Zero-Variance Removal + Ordinal Encoding
 
+-   **Median Imputation:** Missing numeric values are replaced with median of each column.
+
+-   **Zero-Variance Removal:** Features with zero or near-zero variance are removed.
+
+-   **Ordinal Encoding:** Categorical variables are encoded as integers based on their levels.
+
 ```{r}
 recipe_lm2 <- recipe(math_score ~ ., data = train_data) |>
   step_impute_median(all_numeric_predictors()) |>
@@ -180,6 +244,10 @@ recipe_lm2 <- recipe(math_score ~ ., data = train_data) |>
 ```
 
 #### Recipe 3: KNN Imputation + Lumping Rare Categories + Normalization
+
+-   **KNN Imputation:** Missing numeric values are imputed using the KNN method.
+
+-   **Lumping Rare Categories:** Categorical variables with a frequency below 5% are grouped into an 'Other' category.
 
 ```{r}
 recipe_lm3 <- recipe(math_score ~ ., data = train_data) |>
@@ -194,6 +262,8 @@ recipe_lm3 <- recipe(math_score ~ ., data = train_data) |>
 
 #### Preparation of Recipes
 
+'prep()' is applied to each recipe to finalize the transformations based on the training data. This step ensures preprocessing steps are ready to be applied to both training and test sets.
+
 ```{r}
 prep_lm1 <- prep(recipe_lm1)
 prep_lm2 <- prep(recipe_lm2)
@@ -202,7 +272,11 @@ prep_lm3 <- prep(recipe_lm3)
 
 ### KNN Recipes
 
+This section creates 3 different data preprocessing pipelines using the 'recipes' package from tidymodels to prepare data for KNN regression models. Each recipe applies various imputation, encoding and normalization techniques to prepare data for effective model training.
+
 #### Recipe 1: Mean Imputation + One-Hot Encoding + Zero-Variance Removal +Normalization
+
+-   **One-Hot Encoding:** Categorical variables are converted into multiple binary columns using 'step_dummy' with one-hot encoding.
 
 ```{r}
 recipe_knn1 <- recipe(math_score ~ ., data = train_data) |>
@@ -237,6 +311,8 @@ recipe_knn3 <- recipe(math_score ~ ., data = train_data) |>
 
 #### Preparation of Recipes
 
+'prep()' is applied to each recipe to finalize the transformations based on the training data. This step ensures preprocessing steps are ready to be applied to both training and test sets.
+
 ```{r}
 prep_knn1 <- prep(recipe_knn1)
 prep_knn2 <- prep(recipe_knn2)
@@ -245,16 +321,24 @@ prep_knn3 <- prep(recipe_knn3)
 
 ## Model Definition
 
+This section defines the models that will be used for regression tasks. A Linear Regression model and 3 KNN models with different values for k are created.
+
 ### Linear Regression
+
+This model will be used to establish a linear relationship between the features and the math scores.
 
 ```{r}
 lm_model <- linear_reg() |>  
   set_engine("lm")
-
-
 ```
 
 ### KNN Models
+
+-   *'knn_model3'* uses 3 nearest neighbors for prediction, making it more sensitive to local patterns.
+
+-   *'knn_model5'* uses 5 nearest neighbors, providing a balanced approach between accuracy and stability.
+
+-   *'knn_model10'* uses 10 nearest neighbors, which may generalize better but could miss finer details.
 
 ```{r}
 knn_model3 <- nearest_neighbor(neighbors = 3) |> 
@@ -266,13 +350,15 @@ knn_model5 <- nearest_neighbor(neighbors = 5) |>
 knn_model10 <- nearest_neighbor(neighbors = 10) |> 
   set_engine("kknn") |> 
   set_mode("regression")
-
-
 ```
 
 ## Workflow Creation
 
+This section creates and organizes multiple workflows. Workflows are a convenient way to bundle together preprocessing recipes and models for streamlined model training and evaluation.
+
 ### Linear Regression Workflow Set
+
+Since there's only one model, each recipe is paired with it, forming 3 distinct workflows.
 
 ```{r}
 lm_workflows <- workflow_set(
@@ -289,6 +375,8 @@ lm_workflows <- workflow_set(
 ```
 
 ### KNN Workflow Set
+
+-   The 'cross = TRUE' parameter ensures that all recipes are applied to each of the models, creating a comprehensive set of workflows.
 
 ```{r}
 knn_workflows <- workflow_set(
@@ -308,12 +396,22 @@ knn_workflows <- workflow_set(
 
 ### Combining All Workflows
 
+Gathers all possible combinations of preprocessing recipes and models, providing a consolidated set of workflows for model training, validation and comparison.
+
 ```{r}
 all_workflows <- lm_workflows |> 
   bind_rows(knn_workflows)
 ```
 
 ## Cross-Validation & Model Evaluation
+
+This section performs cross-validation to evaluate the performance of different models and preprocessing pipelines. It uses repeated k-fold cross-validation to ensure robust and reliable model reassessment.
+
+**Cross-Validation:** Split the training data into 5 folds and repeat the process 5 times. It minimizes model bias and variance by averaging results across different folds.
+
+**Evaluation Metrics:** Using RMSE and R-Squared to evaluate model performance.
+
+**Workflow Mapping:** Applying all workflows to the cross-validation splits.
 
 ```{r}
 set.seed(427)
@@ -334,6 +432,8 @@ cv_metrics <- cv_results |> collect_metrics()
 
 ### RMSE Plot
 
+Visualizing Root Mean Squared Error values for each workflow, measuring the average error between predicted and actual Math scores. Lower RMSE indicates better model performance.
+
 ```{r}
 ggplot(cv_metrics |> filter(.metric == "rmse"), aes(x = wflow_id, y = mean, fill = model)) +
   geom_col(position = "dodge") +
@@ -348,6 +448,8 @@ ggplot(cv_metrics |> filter(.metric == "rmse"), aes(x = wflow_id, y = mean, fill
 
 ### R-Squared Plot
 
+Visualizing the Mean R-Squared values for each workflow, showing how well the model explains the variance in Math scores. Higher R-squared indicates better model performance.
+
 ```{r}
 ggplot(cv_metrics |> filter(.metric == "rsq"), aes(x = wflow_id, y = mean, fill = model)) +
   geom_col(position = "dodge") +
@@ -360,7 +462,11 @@ ggplot(cv_metrics |> filter(.metric == "rsq"), aes(x = wflow_id, y = mean, fill 
   theme_minimal()
 ```
 
+***lm_recipe1_lm_model*** **is the our best performing model since it has the lowest RMSE and highest R-Squared.**
+
 ## Model Selection, Fitting & Evaluation
+
+This section extracts the best_performing model, fits it to the data, and evaluates its performance on the test set using appropriate metrics.
 
 ```{r}
 # Extract and Fit Best Model
@@ -377,3 +483,5 @@ test_metrics <- collect_metrics(final_fit)
 test_metrics
 
 ```
+
+This step concludes the modeling process, offering a clear measure of the model's predictive accuracy and effectiveness.
