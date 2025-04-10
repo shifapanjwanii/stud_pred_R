@@ -3125,16 +3125,16 @@ vertical-align: -.125em;
 <h2 class="anchored" data-anchor-id="data-students-performance-in-exams">Data: Students Performance in Exams</h2>
 <p>There are 8 columns and 1000 rows. The primary variables of interest are:</p>
 <ul>
-<li><p><em>‘gender’:</em> Gender of the student</p></li>
-<li><p><em>‘race_ethnicity’</em>: Race/ethnicity of the student</p></li>
-<li><p><em>‘parental_level_of_education’:</em> Highest degree earned by student’s parents</p></li>
-<li><p><em>‘lunch’:</em> Type of lunch plan the student is registered for</p></li>
-<li><p><em>‘test_preparation_course’:</em> Whether they took a test preparation course</p></li>
-<li><p><em>‘math_score’:</em> Student’s math score</p></li>
-<li><p><em>‘reading_score’:</em> Student’s reading score</p></li>
-<li><p><em>‘writing_score’:</em> Student’s writing score</p></li>
+<li><p><em><code>gender</code>:</em> Gender of the student</p></li>
+<li><p><em><code>race_ethnicity</code></em>: Race/ethnicity of the student</p></li>
+<li><p><em><code>parental_level_of_education</code></em>: Highest degree earned by student’s parents</p></li>
+<li><p><em><code>lunch</code>:</em> Type of lunch plan the student is registered for</p></li>
+<li><p><em><code>test_preparation_course</code></em>: Whether they took a test preparation course</p></li>
+<li><p><em><code>math_score</code></em>: Student’s math score</p></li>
+<li><p><em><code>reading_score</code></em>: Student’s reading score</p></li>
+<li><p><em><code>writing_score</code></em>: Student’s writing score</p></li>
 </ul>
-<p>The ultimate goal will be to predict <em>‘math_score’</em> using the other features.</p>
+<p>The ultimate goal will be to predict <em><code>math_score</code></em> using the other features.</p>
 </section>
 <section id="loading-libraries" class="level2">
 <h2 class="anchored" data-anchor-id="loading-libraries">Loading Libraries</h2>
@@ -3150,7 +3150,7 @@ vertical-align: -.125em;
 <section id="loading-dataset" class="level2">
 <h2 class="anchored" data-anchor-id="loading-dataset">Loading Dataset</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&#39;/Users/shifapanjwani/Desktop/GitHub/mlproject/notebook/data/stud.csv&#39;</span>)</span>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&#39;stud.csv&#39;</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 8

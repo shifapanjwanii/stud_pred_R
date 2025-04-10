@@ -29,23 +29,23 @@ This project will leverage various machine learning algorithms and evaluate thei
 
 There are 8 columns and 1000 rows. The primary variables of interest are:
 
--   *'gender':* Gender of the student
+-   *`gender`:* Gender of the student
 
--   *'race_ethnicity'*: Race/ethnicity of the student
+-   *`race_ethnicity`*: Race/ethnicity of the student
 
--   *'parental_level_of_education':* Highest degree earned by student's parents
+-   *`parental_level_of_education`*: Highest degree earned by student's parents
 
--   *'lunch':* Type of lunch plan the student is registered for
+-   *`lunch`:* Type of lunch plan the student is registered for
 
--   *'test_preparation_course':* Whether they took a test preparation course
+-   *`test_preparation_course`*: Whether they took a test preparation course
 
--   *'math_score':* Student's math score
+-   *`math_score`*: Student's math score
 
--   *'reading_score':* Student's reading score
+-   *`reading_score`*: Student's reading score
 
--   *'writing_score':* Student's writing score
+-   *`writing_score`*: Student's writing score
 
-The ultimate goal will be to predict *'math_score'* using the other features.
+The ultimate goal will be to predict *`math_score`* using the other features.
 
 ## Loading Libraries
 
@@ -65,7 +65,7 @@ library(readr)
 ```{r}
 #| message: false
 #| warning: false
-data <- read_csv('/Users/shifapanjwani/Desktop/GitHub/mlproject/notebook/data/stud.csv')
+data <- read_csv('stud.csv')
 head(data)
 ```
 
