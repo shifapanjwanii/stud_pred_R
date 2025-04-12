@@ -11,7 +11,7 @@ format:
 
 In the field of education, understanding the factors influencing student performance is critical for improving academic outcomes. This project aims to develop a predictive model to estimate students' Math scores using the [**Student Performance Prediction**](https://www.kaggle.com/datasets/spscientist/students-performance-in-exams?datasetId=74977) dataset. The dataset contains various demographic and academic features, including **gender**, **race/ethnicity**, **parental education level**, **lunch type**, **test preparation course completion**, as well as **reading and writing scores**.
 
-The primary objective is to analyze how these factors contribute to Math performance and create an accurate machine learning model that can predict Math scores. By identifying the most significant predictors, the study will provide actionable insights for educators, policymakers, and academic institutions to implement targeted interventions and improve student outcomes.
+The primary objective is to analyze how these factors contribute to Math performance and create an accurate machine learning model that can predict Math scores.
 
 **Key Goals:**
 
@@ -58,6 +58,7 @@ library(ggplot2)
 library(ISLR2)
 library(dplyr)
 library(readr)
+library(knitr)
 ```
 
 ## Loading Dataset
@@ -66,10 +67,10 @@ library(readr)
 #| message: false
 #| warning: false
 data <- read_csv('stud.csv')
-head(data)
+kable(head(data))
 ```
 
-## Data Cleaning
+## Exploratory Data Analysis
 
 ### Missing Values
 
@@ -77,76 +78,24 @@ head(data)
 sum(is.na(data))
 ```
 
-### Outliers
-
-This section handles outliers in the dataset using boxplots.
-
--   Initially, a boxplot is created to visualize the distribution of the 3 scores to detect any outliers.
-
--   The plot revealed a few outliers, which were identified as points falling beyond the typical range of the data (often 1.5 times the IQR).
-
--   These outliers were removed to improve model accuracy and reduce noise in the data.
-
--   After removing the outliers, the number of rows in the dataset was reduced from 1000 to 986.
-
-```{r}
-data |>
-  select(math_score, reading_score, writing_score) |>
-  gather(key = "variable", value = "value") |>
-  ggplot(aes(x = variable, y = value)) +
-  geom_boxplot() +
-  labs(title = "Boxplot of Math, Reading, and Writing Scores to Identify Outliers")
-
-
-remove_outliers <- function(data, col) {
-  Q1 <- quantile(data[[col]], 0.25)
-  Q3 <- quantile(data[[col]], 0.75)
-  IQR <- Q3 - Q1
-  data %>% filter(data[[col]] >= (Q1 - 1.5 * IQR) & data[[col]] <= (Q3 + 1.5 * IQR))
-}
-
-# Remove outliers from math, reading, and writing scores
-data_clean <- data |>
-  remove_outliers("math_score") |>
-  remove_outliers("reading_score") |>
-  remove_outliers("writing_score")
-
-# Check the dimensions before and after outlier removal
-cat("Original data: ", nrow(data), "rows\n")
-cat("Cleaned data: ", nrow(data_clean), "rows\n")
-
-data_clean |>
-  select(math_score, reading_score, writing_score) |>
-  gather(key = "variable", value = "value") |>
-  ggplot(aes(x = variable, y = value)) +
-  geom_boxplot() +
-  labs(title = "Boxplot of Math, Reading, and Writing Scores to Identify Outliers")
-```
-
-## Exploratory Data Analysis
-
-### Summary
-
-```{r}
-summary(data_clean)
-```
-
 ### Near-Zero Variance & Lumping
 
 This section checks the distribution of categorical variables in the dataset. The goal was to identify categories with near-zero variance (very few occurrences), however, none of the categories qualified for it. Hence, there's no need for lumping.
 
 ```{r}
-data_clean |> count(gender)
-data_clean |> count(race_ethnicity)
-data_clean |> count(parental_level_of_education)
-data_clean |> count(lunch)
-data_clean |> count(test_preparation_course)
+data |> count(gender) |> kable()
+data |> count(race_ethnicity) |> kable()
+data |> count(parental_level_of_education) |> kable()
+data |> count(lunch) |> kable()
+data |> count(test_preparation_course) |> kable()
 ```
 
 ### Math Score vs. Gender
 
+**Hypothesis**: Math scores would be quite similar for both genders.
+
 ```{r}
-ggplot(data_clean, aes(x = gender, y = math_score, fill = gender)) +
+ggplot(data, aes(x = gender, y = math_score, fill = gender)) +
   geom_boxplot() +
   labs(title = "Gender vs Math Score")
 ```
@@ -155,8 +104,10 @@ ggplot(data_clean, aes(x = gender, y = math_score, fill = gender)) +
 
 ### Math Score vs. Test Preparation Course
 
+**Hypothesis**: Math scores would be higher for students who took the test preparation course.
+
 ```{r}
-ggplot(data_clean, aes(x = test_preparation_course, y = math_score, fill = test_preparation_course)) +
+ggplot(data, aes(x = test_preparation_course, y = math_score, fill = test_preparation_course)) +
   geom_boxplot() +
   labs(title = "Test Preparation Course vs Math Score")
 ```
@@ -166,7 +117,7 @@ ggplot(data_clean, aes(x = test_preparation_course, y = math_score, fill = test_
 ### Correlation Matrix
 
 ```{r}
-correlation_matrix <- cor(data_clean |>
+correlation_matrix <- cor(data |>
                             select_if(is.numeric))
 print(correlation_matrix)
 ```
@@ -175,14 +126,14 @@ print(correlation_matrix)
 
 -   Math scores, with each of Reading and Writing scores also have moderate positive correlations.
 
-## Data Preprocessing
+## Data Pre-processing
 
 ### Categorical Columns to Factors
 
 This code converts all categorical columns in the dataset from 'character' to 'factor' type, to ensure they are treated appropriately during modeling.
 
 ```{r}
-data_clean <- data_clean |>
+data <- data |>
   mutate(across(where(is.character), as.factor))
 ```
 
@@ -192,17 +143,18 @@ We split the data into train (70%) and test (30%) sets.
 
 ```{r}
 set.seed(427)
-data_split <- initial_split(data_clean, prop = 0.7)
+data_split <- initial_split(data, prop = 0.7)
 train_data <- training(data_split)
 test_data <- testing(data_split)
-
-nrow(train_data)
-nrow(test_data)
 ```
+
+-   There are 1000 rows in this dataset.
+
+-   After a 70/30 split, there are 700 rows in training set and 300 in test set.
 
 ### Linear Regression Recipes
 
-This section creates 3 different data preprocessing pipelines using the 'recipes' package from tidymodels to prepare data for linear regression models. Each recipe applies various imputation, encoding and normalization techniques to handle missing values, categorical data, and scaling.
+This section creates 3 different data pre-processing pipelines using the `recipes` package from `tidymodels` to prepare data for linear regression models. Each recipe applies various imputation, encoding and normalization techniques to handle missing values, categorical data, and scaling.
 
 #### Recipe 1: Mean Imputation + Dummy Encoding + Normalization
 
@@ -212,7 +164,7 @@ This section creates 3 different data preprocessing pipelines using the 'recipes
 
 -   **Dummy Encoding:** Categorical variables are converted into dummy (binary) variables for linear regression.
 
--   **Linear Combination Check:** Multicollinear functions are detected and removed.
+-   **Linear Combination Check:** Multi-collinear functions are detected and removed.
 
 -   **Normalization:** Numeric features are scaled to have a mean of zero and standard deviation of one.
 
@@ -260,16 +212,6 @@ recipe_lm3 <- recipe(math_score ~ ., data = train_data) |>
   step_normalize(all_numeric_predictors())
 ```
 
-#### Preparation of Recipes
-
-'prep()' is applied to each recipe to finalize the transformations based on the training data. This step ensures preprocessing steps are ready to be applied to both training and test sets.
-
-```{r}
-prep_lm1 <- prep(recipe_lm1)
-prep_lm2 <- prep(recipe_lm2)
-prep_lm3 <- prep(recipe_lm3)
-```
-
 ### KNN Recipes
 
 This section creates 3 different data preprocessing pipelines using the 'recipes' package from tidymodels to prepare data for KNN regression models. Each recipe applies various imputation, encoding and normalization techniques to prepare data for effective model training.
@@ -307,16 +249,6 @@ recipe_knn3 <- recipe(math_score ~ ., data = train_data) |>
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |>  
   step_zv(all_predictors()) |>  
   step_normalize(all_numeric_predictors())
-```
-
-#### Preparation of Recipes
-
-'prep()' is applied to each recipe to finalize the transformations based on the training data. This step ensures preprocessing steps are ready to be applied to both training and test sets.
-
-```{r}
-prep_knn1 <- prep(recipe_knn1)
-prep_knn2 <- prep(recipe_knn2)
-prep_knn3 <- prep(recipe_knn3)
 ```
 
 ## Model Definition
@@ -475,7 +407,7 @@ best_workflow <- all_workflows |>
 
 # Re-fit the model
 set.seed(427)
-data_split <- initial_split(data_clean, prop = 0.7)
+data_split <- initial_split(data, prop = 0.7)
 final_fit <- last_fit(best_workflow, split = data_split, metrics = metric_set(rmse, rsq))
 
 # Evaluate on Test Set
